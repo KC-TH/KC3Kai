@@ -254,12 +254,53 @@ Previously known as "Reactor"
 			KC3Network.trigger("Fleet");
 		},
 		
+		/* Fleet Presets
+		-------------------------------------------------------*/
+		
+		// List Presets
+		"api_get_member/preset_deck":function(params, response, headers){
+			localStorage.presets = JSON.stringify(response.api_data.api_deck);
+			console.log("LIST PRESETS", response.api_data.api_deck, localStorage.presets);
+		},
+		
+		// Register preset
+		"api_req_hensei/preset_register":function(params, response, headers){
+			var MyPresets = JSON.parse(localStorage.presets);
+			MyPresets[response.api_data.api_preset_no] = response.api_data;
+			localStorage.presets = JSON.stringify(MyPresets);
+			console.log("REGISTERED PRESET", MyPresets, localStorage.presets);
+		},
+		
+		// Remove Preset from list
+		"api_req_hensei/preset_delete":function(params, response, headers){
+			var MyPresets = JSON.parse(localStorage.presets);
+			delete MyPresets[params.api_preset_no];
+			localStorage.presets = JSON.stringify(MyPresets);
+			console.log("DELETED PRESET", MyPresets, localStorage.presets);
+		},
+		
+		// Use a Preset
+		"api_req_hensei/preset_select":function(params, response, headers){
+			var deckId = parseInt(params.api_deck_id, 10);
+			PlayerManager.fleets[deckId-1].update( response.api_data );
+			localStorage.fleets = JSON.stringify(PlayerManager.fleets);
+			KC3Network.trigger("Fleet");
+		},
+		
 		/* Equipment list
 		-------------------------------------------------------*/
 		"api_get_member/slot_item": function(params, response, headers){
 			KC3GearManager.clear();
 			KC3GearManager.set( response.api_data );
 			KC3Network.trigger("GearSlots");
+			KC3Network.trigger("Fleet");
+		},
+		
+		// Equipment dragging
+		"api_req_kaisou/slot_exchange_index": function(params, response, headers){
+			var UpdatingShip = KC3ShipManager.get(params.api_id);
+			UpdatingShip.items = response.api_data.api_slot;
+			KC3ShipManager.save();
 			KC3Network.trigger("Fleet");
 		},
 		
@@ -726,6 +767,18 @@ Previously known as "Reactor"
 		/*-------------------------------------------------------*/
 		/*--------------------[ EXPEDITION ]---------------------*/
 		/*-------------------------------------------------------*/
+
+		/* Expedition Selection Screen
+		  -------------------------------------------------------*/
+		"api_get_member/mission": function(params, response, headers) {
+			KC3Network.trigger( "ExpeditionSelection" );
+		},
+
+		/* Expedition Start
+		  -------------------------------------------------------*/
+		"api_req_mission/start": function(params, response, headers) {
+			KC3Network.trigger( "ExpeditionStart" );
+		},
 		
 		/* Complete Expedition
 		-------------------------------------------------------*/

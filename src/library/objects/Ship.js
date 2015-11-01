@@ -83,7 +83,7 @@ KC3改 Ship Object
 	KC3Ship.prototype.isFast = function(){ return this.master().api_soku>=10; };
 	KC3Ship.prototype.exItem = function(){ return (this.ex_item>0)?KC3GearManager.get(this.ex_item):false; };
 	KC3Ship.prototype.isStriped = function(){ return (this.hp[1]>0) && (this.hp[0]/this.hp[1] <= 0.5); };
-	KC3Ship.prototype.isTaiha   = function(){ return (this.hp[1]>0) && (this.hp[0]/this.hp[1] <= 0.25); };
+	KC3Ship.prototype.isTaiha   = function(){ return (this.hp[1]>0) && (this.hp[0]/this.hp[1] <= 0.25) && !this.isRepaired(); };
 
 	/* DAMAGE STATUS
 	Get damage status of the ship, return one of the following string:
@@ -186,17 +186,32 @@ KC3改 Ship Object
 		if(this.items[3] > -1){ MyNakedLos -= this.equipment(3).master().api_saku; }
 		return MyNakedLos;
 	};
+
+	/* COUNT EQUIPMENT
+	Get number of equipments of a specific masterId
+	--------------------------------------------------------------*/
+	KC3Ship.prototype.countEquipment = function(masterId) {
+		var self = this;
+		var getEquip = function(slotInd) {
+			var eId = self.equipment(slotInd);
+			return (eId.masterId === masterId) ? 1 : 0;
+		};
+		return [0,1,2,3].map( getEquip ).reduce(
+			function(a,b) { return a + b; }, 0 );
+	};
 	
 	/* COUNT DRUMS
 	Get number of drums held
 	--------------------------------------------------------------*/
 	KC3Ship.prototype.countDrums = function(){
-		var DrumCount = 0;
-		DrumCount += (this.equipment(0).masterId == 75)?1:0;
-		DrumCount += (this.equipment(1).masterId == 75)?1:0;
-		DrumCount += (this.equipment(2).masterId == 75)?1:0;
-		DrumCount += (this.equipment(3).masterId == 75)?1:0;
-		return DrumCount;
+		return this.countEquipment( 75 );
+	};
+
+	/* COUNT LANDING CRAFT
+	   Get number of landing crafts held
+	   ----------------------------------------- */
+	KC3Ship.prototype.countLandingCrafts = function(){
+		return this.countEquipment( 68 );
 	};
 	
 	/* FIGHTER POWER
@@ -266,6 +281,29 @@ KC3改 Ship Object
 		return supportPower;
 	};
 	
+	/* Calculate resupply cost
+	   ----------------------------------
+	   0 <= fuelPercent <= 1
+	   0 <= ammoPercent <= 1
+	   returns an object: {fuel: <fuelCost>, ammo: <ammoCost>}
+	 */
+	KC3Ship.prototype.calcResupplyCost = function(fuelPercent, ammoPercent) {
+		var master = this.master();
+		var fullFuel = master.api_fuel_max;
+		var fullAmmo = master.api_bull_max;
+
+		// TODO: to be verified
+		if (this.level >= 100) {
+			fullFuel = Math.ceil(fullFuel * 0.85);
+			fullAmmo = Math.ceil(fullAmmo * 0.85);
+		}
+
+		var mulRounded = function (a, percent) {
+			return Math.floor( a * percent );
+		};
+		return { fuel: mulRounded( fullFuel, fuelPercent ),
+				 ammo: mulRounded( fullAmmo, ammoPercent ) };
+	};
 	/*
 	.removeEquip( slotIndex )
 	*/
