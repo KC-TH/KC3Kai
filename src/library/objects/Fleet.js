@@ -12,11 +12,7 @@ Contains summary information about a fleet and its 6 ships
 		this.name = "";
 		this.ships = [ -1, -1, -1, -1, -1, -1 ];
 		this.mission = [ 0, 0, 0, 0 ];
-		this.akashi_tick = 0;
-		
-		if(!!data) {
-			$.extend(this,data);
-		}
+		this.akashi_tick = 0; // TODO: if not lazy _(:3
 	};
 	
 	KC3Fleet.prototype.update = function( data ){
@@ -78,8 +74,7 @@ Contains summary information about a fleet and its 6 ships
 	/*--------------------------------------------------------*/
 	
 	KC3Fleet.prototype.countShips = function(){
-		return (this.ships.indexOf(-1)+1 || 7)-1;
-		//return $.grep(this.ships, function(shipId){ return shipId>-1; }).length;
+		return $.grep(this.ships, function(shipId){ return shipId>-1; }).length;
 	};
 	
 	KC3Fleet.prototype.totalLevel = function(){
@@ -246,10 +241,6 @@ Contains summary information about a fleet and its 6 ships
 			.reduce(function(x,y){return x||y;});
 	};
 	
-	KC3Fleet.prototype.missionOK = function(){
-		return this.countShips() >= 2 && this.mission[0] === 0;
-	};
-	
 	KC3Fleet.prototype.lowestMorale = function(){
 		var lowestMorale = 101;
 		if(this.ship(0).morale < lowestMorale && this.ship(0).rosterId>0){ lowestMorale = this.ship(0).morale; }
@@ -414,18 +405,17 @@ Contains summary information about a fleet and its 6 ships
 			var self = this;
 			$.each(this.ships, function(index, rosterId){
 				if(rosterId > -1){
-					var ship = self.ship(index);
 					ReturnObj.push({
-						mst_id: ship.masterId,
-						level: ship.level,
-						kyouka: ship.mod,
-						morale: ship.morale,
+						mst_id: self.ship(index).masterId,
+						level: self.ship(index).level,
+						kyouka: self.ship(index).mod,
+						morale: self.ship(index).morale,
 						equip: [
-							ship.equipment(0).masterId,
-							ship.equipment(1).masterId,
-							ship.equipment(2).masterId,
-							ship.equipment(3).masterId,
-							ship.exItem().masterId
+							self.ship(index).equipment(0).masterId,
+							self.ship(index).equipment(1).masterId,
+							self.ship(index).equipment(2).masterId,
+							self.ship(index).equipment(3).masterId,
+							self.ship(index).exItem().masterId
 						],
 					});
 				}

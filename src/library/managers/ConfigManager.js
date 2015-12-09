@@ -35,7 +35,6 @@ Retreives when needed to apply on components
 				info_battle 		: true,
 				info_btstamp 		: false,
 				info_boss 			: false,
-				info_salt 			: false,
 				info_troll 			: false,
 				info_delta 			: false,
 				info_fleetstat 		: true,
@@ -69,10 +68,7 @@ Retreives when needed to apply on components
 						[0,0], // 0
 						[0,1], [0,1], [1,3], // 3
 						[1,3], [3,7], [3,7], [7,9]	// 7
-					]
-				},
-				
-				salt_list 		: [],
+					]},
 
 				ss_mode				: 0,
 				ss_type				: 'JPG',
@@ -153,12 +149,8 @@ Retreives when needed to apply on components
 				// Merge defaults, then old config values to ConfigManager
 				$.extend(this, this.defaults(), oldConfig);
 			}
-			
-			/* Force Revert */
-			if(this.language == "troll")
-				this.resetValueOf('language');
-			if(!(this.salt_list instanceof Array))
-				this.resetValueOf('salt_list');
+			if(this.language == "troll") // force reverting
+				this.language = "en";
 		},
 		
 		// Save current config onto localStorage
