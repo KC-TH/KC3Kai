@@ -4,10 +4,16 @@ KC3改 Ship Box for Natsuiro theme
 (function(){
 	"use strict";
 	
-	window.KC3NatsuiroShipbox = function( base, rosterId ){
+	window.KC3NatsuiroShipbox = function( base, rosterId, showCombinedFleetBars, dameConConsumed ){
 		this.element = $("#factory "+base).clone();
 		this.element.attr("id", "ShipBox"+rosterId);
 		this.shipData = KC3ShipManager.get( rosterId );
+		this.dameConConsumed = dameConConsumed || false;
+		
+		this.showCombinedFleetBars = true;
+		if(typeof showCombinedFleetBars != "undefined"){
+			this.showCombinedFleetBars = showCombinedFleetBars;
+		}
 		
 		this.expPercent = this.shipData.exp[2] / 100;
 		this.fuelPercent = this.shipData.fuel / this.shipData.master().api_fuel_max;
@@ -18,7 +24,25 @@ KC3改 Ship Box for Natsuiro theme
 	Short ship box for combined fleets
 	---------------------------------------------------*/
 	KC3NatsuiroShipbox.prototype.commonElements = function( rosterId ){
-		$(".ship_img img", this.element).attr("src", KC3Meta.shipIcon(this.shipData.masterId));
+		var leftPad = function(num){return ("   "+num).slice(-3);};
+		var tooltip = "{0}: {1}\n".format(this.shipData.masterId, KC3Meta.shipName(this.shipData.master().api_yomi));
+		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipArmor"), leftPad(this.shipData.ar[0]));
+		tooltip += "{0}: {1} \n".format(KC3Meta.term("ShipFire"), leftPad(this.shipData.fp[0]));
+		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipEvasion"), leftPad(this.shipData.ev[0]));
+		tooltip += "{0}: {1} \n".format(KC3Meta.term("ShipTorpedo"), leftPad(this.shipData.tp[0]));
+		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipAsw"), leftPad(this.shipData.as[0]));
+		tooltip += "{0}: {1} \n".format(KC3Meta.term("ShipAntiAir"), leftPad(this.shipData.aa[0]));
+		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipLos"), leftPad(this.shipData.ls[0]));
+		tooltip += "{0}: {1} ".format(KC3Meta.term("ShipLuck"), leftPad(this.shipData.lk[0]));
+		$(".ship_img img", this.element).attr("src", KC3Meta.shipIcon(this.shipData.masterId))
+			.attr("title", tooltip);
+		/*
+		$(".ship_img", this.element).addClass("hover").data("sid", this.shipData.masterId);
+		$(".ship_img", this.element).click(function(e){
+			var tab = "#mstship-" + $(this).data("sid");
+			var sr = window.open("/pages/strategy/strategy.html" + tab, "kc3kai_strategy");
+		});
+		*/
 		$(".ship_name", this.element).text( this.shipData.name() );
 		$(".ship_type", this.element).text( this.shipData.stype() );
 		
@@ -37,6 +61,23 @@ KC3改 Ship Box for Natsuiro theme
 		}else{
 			$(".ex_item", this.element).hide();
 		}
+		if(this.dameConConsumed.pos == 4){
+			$(".ex_item", this.element).addClass("item_being_used");
+		} else {
+			$(".ex_item", this.element).removeClass("item_being_used");
+		}
+		
+		// MVP icon
+		if(this.shipData.mvp){
+			$(".mvp_icon", this.element).show();
+			// Reserved value for predicted MVP
+			if(typeof this.shipData.mvp === "string"){
+				$(".mvp_icon img", this.element).css("opacity", 0.5);
+			}
+		} else {
+			$(".mvp_icon", this.element).hide();
+			$(".mvp_icon img", this.element).css("opacity", "");
+		}
 		
 		return this;
 	};
@@ -45,7 +86,7 @@ KC3改 Ship Box for Natsuiro theme
 	/* DEFINE SHORT
 	Short ship box for combined fleets
 	---------------------------------------------------*/
-	KC3NatsuiroShipbox.prototype.defineShort = function(){
+	KC3NatsuiroShipbox.prototype.defineShort = function( CurrentFleet ){
 		this.hpBarLength = 88;
 		this.showHP();
 		this.showPrediction();
@@ -57,13 +98,17 @@ KC3改 Ship Box for Natsuiro theme
 		$(".ship_ammo", this.element).css("width", (120 * Math.min(this.ammoPercent, 1))+"px");
 		$(".ship_bars", this.element).attr("title", KC3Meta.term("PanelCombinedShipBarsHint").format(this.shipData.exp[1], Math.ceil(this.fuelPercent*100), Math.ceil(this.ammoPercent*100)) );
 		
+		if(!this.showCombinedFleetBars){
+			$(".ship_bars", this.element).css("opacity", "0");
+		}
+		
 		return this.element;
 	};
 	
 	/* DEFINE LONG
 	Long ship box for single-view fleets
 	---------------------------------------------------*/
-	KC3NatsuiroShipbox.prototype.defineLong = function(){
+	KC3NatsuiroShipbox.prototype.defineLong = function( CurrentFleet ){
 		this.hpBarLength = 118;
 		this.showHP();
 		this.showPrediction();
@@ -106,6 +151,12 @@ KC3改 Ship Box for Natsuiro theme
 		// HP bar
 		var hpPercent = this.shipData.hp[0] / this.shipData.hp[1];
 		$(".ship_hp_bar", this.element).css("width", (this.hpBarLength*hpPercent)+"px");
+		
+		// Left HP to be Taiha
+		var taihaHp = Math.floor(0.25 * this.shipData.hp[1]);
+		if(this.shipData.hp[0] > taihaHp && this.shipData.hp[0] < this.shipData.hp[1]){
+			$(".ship_hp_cur", this.element).attr("title", KC3Meta.term("PanelTaihaHpLeft").format(taihaHp, this.shipData.hp[0] - taihaHp) );
+		}
 		
 		// Clear box colors
 		this.element.css("background-color", "transparent");
@@ -188,9 +239,11 @@ KC3改 Ship Box for Natsuiro theme
 			$(".ship_hp_prediction", this.element).css("width", (this.hpBarLength*afterHpPercent)+"px");
 			
 			// HP-based UI and colors
-			if(afterHpPercent <= 0.00 && ConfigManager.info_btstamp) { // Sunk or Knocked out
-				this.element.addClass("ship-stamp");
-				this.element.attr("title", KC3Meta.term("PredictionStampPvP"));
+			if(ConfigManager.info_btstamp && afterHpPercent <= 0.00) {
+				// Sunk or Knocked out: afterHp[0]<=0 only occurs when battle starts from 'taiha'
+				// Call KO for PvP as although 'sinks' but not lost, and cannot move, gains 0 exp
+				$(this.element).addClass("ship-stamp");
+				$(this.element).attr("title", KC3Meta.term( KC3SortieManager.isPvP() ? "PredictionStampPvP" : "PredictionStampSortie") );
 			} else if(afterHpPercent <= 0.25){
 				$(".ship_hp_prediction", this.element).css("background", "#FF0000");
 			} else if(afterHpPercent <= 0.50){
@@ -240,7 +293,16 @@ KC3改 Ship Box for Natsuiro theme
 		if(this.shipData.slotnum > slot){
 			
 			if(this.shipData.items[slot] > -1){
+				
 				thisGear = KC3GearManager.get( this.shipData.items[slot] );
+				
+				// unknown item
+				if(thisGear.masterId === 0){
+					$(".ship_gear_"+(slot+1)+" .ship_gear_icon img", this.element).attr("src",
+						"../../../../assets/img/ui/empty.png");
+					return false;
+				}
+				
 				$(".ship_gear_"+(slot+1)+" .ship_gear_icon img", this.element).attr("src",
 					"../../../../assets/img/items/"+thisGear.master().api_type[3]+".png");
 				$(".ship_gear_"+(slot+1), this.element).addClass("equipped");
@@ -260,6 +322,15 @@ KC3改 Ship Box for Natsuiro theme
 							$(".ship_gear_"+(slot+1)+" .ship_gear_lvl", this.element).text(thisGear.stars);
 						}
 					}
+				}
+				
+				// Check damecon if prediction is enabled
+				if(this.dameConConsumed && ConfigManager.info_battle){
+					if(this.dameConConsumed.pos == slot){
+						$(".ship_gear_"+(slot+1)+" .ship_gear_icon", this.element).addClass("item_being_used");
+					}
+				} else {
+					$(".ship_gear_"+(slot+1)+" .ship_gear_icon", this.element).removeClass("item_being_used");
 				}
 				
 			}else{

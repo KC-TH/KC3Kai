@@ -30,7 +30,8 @@ module.exports = function(grunt) {
 					'assets/js/jquery-ui.min.js',
 					'assets/js/KanColleHelpers.js',
 					'assets/js/twbsPagination.min.js',
-					'assets/js/WhoCallsTheFleetShipDb.json'
+					'assets/js/WhoCallsTheFleetShipDb.json',
+					'assets/js/jszip.min.js'
 				],
 				dest: 'build/release/'
 			},
@@ -75,6 +76,14 @@ module.exports = function(grunt) {
 					'src/assets/js/global.js',
 					'src/library/**/*.js',
 					'src/pages/**/*.js'
+				]
+			},
+			test : {
+				options: {
+					jshintrc: true
+				},
+				src: [
+					'tests/library/**/*.js',
 				]
 			}
 		},
@@ -249,9 +258,39 @@ module.exports = function(grunt) {
 			all: [
 				'tests/**/*.html'
 			]
+		},
+		compress: {
+			release: {
+				options: {
+					archive: 'build/release.zip',
+					pretty: true
+				},
+				expand: true,
+				cwd: 'build/',
+				src: [ 'release/**/*' ],
+				dest: './'
+			}
+		},
+		webstore_upload: {
+			"accounts": {
+				"dragonjet": {
+					publish: true,
+					client_id: process.env.WEBSTORE_CLIENT_ID,
+					client_secret: process.env.WEBSTORE_CLIENT_SECRET,
+					refresh_token: process.env.WEBSTORE_REFRESH_TOKEN
+				}
+			},
+			"extensions": {
+				"kc3kai": {
+					account: "dragonjet",
+					publish: true, 
+					appID: "hkgmldnainaglpjngpajnnjfhpdjkohh",
+					zip: "build/release.zip"      
+				}
+			}
 		}
 	});
-
+	
 	grunt.loadNpmTasks('grunt-contrib-jshint');
 	grunt.loadNpmTasks('grunt-contrib-concat');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
@@ -264,7 +303,9 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-string-replace');
 	grunt.loadNpmTasks("grunt-remove-logging");
 	grunt.loadNpmTasks("grunt-contrib-qunit");
-
+	grunt.loadNpmTasks('grunt-contrib-compress');
+	grunt.loadNpmTasks('grunt-webstore-upload');
+	
 	grunt.registerTask('build', [
 		'clean:release',
 		'copy:tmpsrc',
@@ -283,17 +324,22 @@ module.exports = function(grunt) {
 		'concat:global_css',
 		'concat:global_js',
 		'concat:library',
-		'concat:strategy',
-		'clean:tmp'
+		'concat:strategy'
 	]);
 	
 	grunt.registerTask('test-src', [
 		'jshint:src',
+		'jshint:test',
 		'jsonlint:src'
 	]);
 	
 	grunt.registerTask('test-unit', [
 		'qunit'
 	]);
-
+	
+	grunt.registerTask('webstore', [
+		'compress:release',
+		'webstore_upload:kc3kai'
+	]);
+	
 };

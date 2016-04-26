@@ -7,38 +7,6 @@
 	
 	KC3StrategyTabs.mstship.definition = {
 		tabSelf: KC3StrategyTabs.mstship,
-		
-		lines: {
-			"Intro" : 1,
-			"Library" : 25,
-			"Poke(1)" : 2,
-			"Poke(2)" : 3,
-			"Poke(3)" : 4,
-			"Married" : 28,
-			"Wedding" : 24,
-			"Ranking" : 8,
-			"Join" : 13,
-			"Equip(1)" : 9,
-			"Equip(2)" : 10,
-			"Equip(3)" : 26,
-			"Supply" : 27,
-			"Docking(1)" : 11,
-			"Docking(2)" : 12,
-			"Construction" : 5,
-			"Return" : 7,
-			"Sortie" : 14,
-			"Battle" : 15,
-			"Attack" : 16,
-			"Yasen(1)" : 18,
-			"Yasen(2)" : 17,
-			"MVP" : 23,
-			"Damaged(1)" : 19,
-			"Damaged(2)" : 20,
-			"Damaged(3)" : 21,
-			"Sunk" : 22,
-			"Idle" : 29,
-			"Repair" : 6
-		},
 		hourlies: {
 			30: "0000",
 			31: "0100",
@@ -67,6 +35,7 @@
 		},
 		currentGraph: "",
 		currentShipId: 0,
+		currentCardVersion: "",
 		audio: false,
 		server_ip: "",
 		
@@ -74,6 +43,7 @@
 		Prepares all data needed
 		---------------------------------*/
 		init :function(){
+			KC3Meta.loadQuotes();
 			var MyServer = (new KC3Server()).setNum( PlayerManager.hq.server );
 			this.server_ip = MyServer.ip;
 		},
@@ -132,9 +102,24 @@
 			// Play voice
 			$(".tab_mstship .shipInfo .voices, .tab_mstship .shipInfo .hourlies").on("click", ".voice", function(){
 				if(self.audio){ self.audio.pause(); }
-				var voiceFile = self.getVoiceLineFileName(self.currentShipId, parseInt($(this).data("vnum"), 10));
-				self.audio = new Audio("http://"+self.server_ip+"/kcs/sound/kc"+self.currentGraph+"/"+voiceFile+".mp3");
+				var voiceFile = KC3Meta.getFilenameByVoiceLine(self.currentShipId, parseInt($(this).data("vnum"), 10));
+				console.log(voiceFile);
+				if(!voiceFile || voiceFile==100000){
+					$(".tab_mstship .shipInfo .subtitles").text("This voice is currently disabled to be replayable in KC3Kai");
+					return true;
+				}
+				
+				var voiceSrc = "http://"+self.server_ip
+							+ "/kcs/sound/kc"+self.currentGraph+"/"+voiceFile+".mp3";
+				self.audio = new Audio(voiceSrc);
 				self.audio.play();
+				console.log("PLAYING: self.currentShipId, vnum, voiceFile", self.currentShipId, parseInt($(this).data("vnum"), 10), voiceFile);
+				
+				// Emulate subtitles
+				var shipGirl = KC3Master.graph_file(self.currentGraph);
+				var voiceLine = KC3Meta.getVoiceLineByFilename(shipGirl, voiceFile);
+				console.log("SUBTITLE: shipGirl, voiceFile, voiceLine", shipGirl, voiceFile, voiceLine);
+				$(".tab_mstship .shipInfo .subtitles").text(KC3Meta.quote( shipGirl, voiceLine ));
 			});
 			
 			// On-click remodels
@@ -176,7 +161,7 @@
 			if(!!KC3StrategyTabs.pageParams[1]){
 				this.showShip(KC3StrategyTabs.pageParams[1]);
 			}else{
-				this.showShip(405);
+				this.showShip(323);
 			}
 		},
 		
@@ -209,28 +194,23 @@
 			
 			// CG VIEWER
 			var shipFile = KC3Master.graph(ship_id).api_filename;
-			var shipVersion = KC3Master.graph(ship_id).api_version;
+			// Changed to an Array from 2016-04-01
+			var shipVersions = KC3Master.graph(ship_id).api_version;
+			console.log("shipVersions", shipVersions);
 			this.currentGraph = shipFile;
-			$(".tab_mstship .shipInfo .cgswf embed").remove();
-			$(".tab_mstship .shipInfo .cgswf object").remove();
+			this.currentCardVersion = shipVersions[0];
 			
 			var shipSrc = "../../../../assets/swf/card.swf?sip="+this.server_ip
 					+"&shipFile="+shipFile
 					+"&abyss="+(ship_id>500?1:0)
-					+(!shipVersion?"":"&ver="+shipVersion);
-			var shipObj = $("<object/>")
-				.attr("data", shipSrc)
-				.attr("width", "218")
-				.attr("height", "300")
-				.attr("menu", "false")
-				.attr("wmode", "transparent")
-				.attr("type", "application/x-shockwave-flash")
-				.appendTo(".tab_mstship .shipInfo .cgswf");
+					+(!this.currentCardVersion?"":"&ver="+this.currentCardVersion);
+			
+			$(".tab_mstship .shipInfo .cgswf embed").remove();
 			$("<embed/>")
 				.attr("src", shipSrc)
 				.attr("wmode", "transparent")
 				.attr("menu", "false")
-				.appendTo(shipObj);
+				.appendTo(".tab_mstship .shipInfo .cgswf");
 			$(".tab_mstship .shipInfo .salty-zone").text(KC3Meta.term(denyTerm()));
 			$(".tab_mstship .shipInfo .hourlies").html("");
 			
@@ -348,15 +328,19 @@
 				$(".tab_mstship .shipInfo .consume_fuel .rsc_value").text( shipData.api_fuel_max );
 				$(".tab_mstship .shipInfo .consume_ammo .rsc_value").text( shipData.api_bull_max );
 				
+				$(".tab_mstship .shipInfo .subtitles").html("");
+				
 				// VOICE LINES
 				$(".tab_mstship .shipInfo .voices").show();
 				$(".tab_mstship .shipInfo .voices").html("");
-				$.each(this.lines, function(vname, vnum){
+
+				var allVoiceNums = KC3Translation.getShipVoiceNums(shipData.api_id,false,false);
+				$.each(allVoiceNums, function(ignored, vnum){
 					$("<div/>")
 						.addClass("hover")
 						.addClass("voice")
 						.data("vnum", vnum)
-						.text(vname)
+						.text(KC3Translation.voiceNumToDesc(vnum) )
 						.appendTo(".tab_mstship .shipInfo .voices");
 				});
 				$("<div/>").addClass("clear").appendTo(".tab_mstship .shipInfo .voices");
@@ -365,7 +349,7 @@
 				$(".tab_mstship .shipInfo .hourlies").show();
 				$(".tab_mstship .shipInfo .hourlies").html("");
 				
-				if(shipData.api_voicef>1){
+				if (KC3Translation.shipHasHourlyVoices(shipData.api_id)){
 					$.each(this.hourlies, function(vnum, vname){
 						var hhStr = vname.substring(0,2);
 						var mmStr = vname.substring(2);
@@ -391,9 +375,9 @@
 					$(".tab_mstship .shipInfo .tokubest .salty-zone").hide();
 			}else{
 				// abyssals, just show json
-				//$(".tab_mstship .shipInfo .json").text(JSON.stringify(shipData));
 				$(".tab_mstship .shipInfo .stats").hide();
 				$(".tab_mstship .shipInfo .equipments").hide();
+				$(".tab_mstship .shipInfo .subtitles").html("");
 				
 				// STATS
 				KC3Database.get_enemyInfo(ship_id, function(enemyInfo){
@@ -446,27 +430,7 @@
 				$(".tab_mstship .shipInfo .tokubest").hide();
 			}
 			
-		},
-		
-		/*
-		Getting new filename for ship voices
-		Source: がか
-		http://kancolle.wikia.com/wiki/Thread:388946#30
-		*/
-		voiceLineKeys: [
-			604825, 607300, 613847, 615318, 624009, 631856, 635451, 637218, 640529,
-			643036, 652687, 658008, 662481, 669598, 675545, 685034, 687703, 696444,
-			702593, 703894, 711191, 714166, 720579, 728970, 738675, 740918, 743009,
-			747240, 750347, 759846, 764051, 770064, 773457, 779858, 786843, 790526,
-			799973, 803260, 808441, 816028, 825381, 827516, 832463, 837868, 843091,
-			852548, 858315, 867580, 875771, 879698, 882759, 885564, 888837, 896168
-		],
-		
-		
-		getVoiceLineFileName: function(ship_api_id, voice_line_id) {
-			return 100000 + 17 * (ship_api_id + 7) * (this.voiceLineKeys[voice_line_id] - this.voiceLineKeys[voice_line_id - 1]) % 99173;
 		}
-		
 	};
 	
 })();
